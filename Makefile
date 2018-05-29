@@ -42,7 +42,7 @@ $(BIN) : $(OBJECTS)
 # Pattern rule for object-source dependences
 
 obj/%.o : src/%.cpp
-	$(CC) $(CPP_FLAGS) $(CPPFLAGS) $(C_FLAGS) $(CFLAGS)-c $<
+	$(CC) $(CPP_FLAGS) $(CPPFLAGS) $(C_FLAGS) $(CFLAGS) -c $< -o $@
 
 # Automatic object-header dependences
 
@@ -51,15 +51,14 @@ makefiles = $(OBJECTS:obj/%.o=obj/%.d)
 include $(makefiles)
 
 obj/%.d : src/%.cpp
-	$(CC) $(CPP_FLAGS) $(CPPFLAGS) -c $<  -MM -MT '$(<:.cpp=.o) $@' $< >$@
+	$(CC) $(CPP_FLAGS) $(CPPFLAGS) -c $<  -MM -MT '$(<:.cpp=.o) $@' $< > $@
 
 # Cleaning
 
 .PHONY : clean
 
 clean:
-	find . -name *.o -exec rm -f {} \;
-	find . -name bin/main -exec rm -f {} \;
-	find . -name *.d -exec rm -f {} \;
-	#rm -f $(OBJECTS) $(BIN) *.d
+	find . -name "*.o" -exec rm -f {} \;
+	rm -f bin/main
+	find . -name "*.d" -exec rm -f {} \;
 	rm -f *~ \#*
