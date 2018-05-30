@@ -29,7 +29,16 @@
 
 #include <string>
 
+/* 
+ * Decrypts the message at the file message_fn, using the key at key_fn and
+ * put the decrypted message at the file encrypted_message_fn.
+ */
 void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypted_message_fn);
+
+/* 
+ * Encrypts the message at the file encrypted_message_fn, using the key at key_fn and
+ * put the encrypted message at the file message_fn.
+ */
 void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypted_message_fn);
 
 void generate_keys (std::string seed);
