@@ -26,7 +26,7 @@ BIN = main
 # Maintainer flags
 
 CPP_FLAGS = -I./include
-C_FLAGS = 
+C_FLAGS = -Wall -std=c++11
 LD_FLAGS = -lgmpxx -lgmp
 CC = g++
 
