@@ -33,25 +33,27 @@
 #include "eml-rsa.h"
 
 int main (int argc, char *argv[]) {
-	std::string key_fn = argv[3];
+	std::string key_fn;
 	std::string message_fn;
 	std::string encrypted_message_fn;
 	std::string seed;
 	char option = argv[2][0];
 
+	key_fn = argv[3];
+
 	switch (option) {
-		case 'D':
-			message_fn = argv[4];
+		case 'C':
 			encrypted_message_fn = argv[5];
-
-			decrypt(key_fn, message_fn, encrypted_message_fn);
-			break;
-
-		case 'E':
-			encrypted_message_fn = argv[4];
-			message_fn = argv[5];
+			message_fn = argv[4];
 
 			encrypt(key_fn, message_fn, encrypted_message_fn);
+			break;
+
+		case 'D':
+			message_fn = argv[5];
+			encrypted_message_fn = argv[4];
+
+			decrypt(key_fn, message_fn, encrypted_message_fn);
 			break;
 
 		case 'K':
