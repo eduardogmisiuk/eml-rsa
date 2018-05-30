@@ -37,27 +37,27 @@ int main (int argc, char *argv[]) {
 	std::string message_fn;
 	std::string encrypted_message_fn;
 	std::string seed;
-	char option = argv[2][0];
+	char option = argv[1][0];
 
-	key_fn = argv[3];
+	key_fn = argv[2];
 
 	switch (option) {
 		case 'C':
-			encrypted_message_fn = argv[5];
-			message_fn = argv[4];
+			encrypted_message_fn = argv[4];
+			message_fn = argv[3];
 
 			encrypt(key_fn, message_fn, encrypted_message_fn);
 			break;
 
 		case 'D':
-			message_fn = argv[5];
-			encrypted_message_fn = argv[4];
+			message_fn = argv[4];
+			encrypted_message_fn = argv[3];
 
 			decrypt(key_fn, message_fn, encrypted_message_fn);
 			break;
 
 		case 'K':
-			seed = argv[4];
+			seed = argv[3];
 
 			generate_keys(seed);
 			break;
