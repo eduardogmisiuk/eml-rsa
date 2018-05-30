@@ -28,7 +28,6 @@
 #include <fstream>
 #include <cstdlib>
 #include <string>
-#include <cmath>
 #include <gmpxx.h>
 
 #include "eml-rsa.h"
@@ -64,8 +63,7 @@ void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 		// We can't convert from mpz_t to char directly,
 		// so we convert to signaled long int and then to char
 		// We can convert to char because now it's an ASCII character
-		message += (char) mpz_get_si(res.get_mpz_t());
-
+		message += (signed char) mpz_get_si(res.get_mpz_t());
 	} while (!encrypted_message_f.eof());
 	encrypted_message_f.close();
 
@@ -106,12 +104,11 @@ void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	} while (!message_f.eof());
 	// The last character at 'message' will be EOF, so we need to get rid of him
 	message.pop_back();
-	std::cout << message << std::endl;
 	message_f.close();
 
 	// Modular exponentiation: character**e mod n
 	for (char &c : message) {
-		character = c;
+		character = (unsigned char) c;
 		mpz_powm(res.get_mpz_t(), character.get_mpz_t(), e.get_mpz_t(), n.get_mpz_t());
 		// Replacing the message characters to improve security
 		c = '0';
@@ -120,7 +117,6 @@ void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	}
 
 	encrypted_message.pop_back();
-	std::cout << "Encrypted: " << encrypted_message << std::endl;
 
 	encrypted_message_f.open(encrypted_message_fn, std::ios::out);
 	encrypted_message_f << encrypted_message;
