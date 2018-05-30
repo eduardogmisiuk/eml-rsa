@@ -45,9 +45,7 @@ obj/%.o : src/%.cpp
 	$(CC) $(CPP_FLAGS) $(CPPFLAGS) $(C_FLAGS) $(CFLAGS) -c $< -o $@
 
 # Automatic object-header dependences
-
 makefiles = $(OBJECTS:obj/%.o=obj/%.d) 
-
 include $(makefiles)
 
 obj/%.d : src/%.cpp
@@ -59,6 +57,6 @@ obj/%.d : src/%.cpp
 
 clean:
 	find . -name "*.o" -exec rm -f {} \;
-	find . -name "eml-rsa-main" -exec rm -f {} \;
+	find . -name "$(BIN)" -exec rm -f {} \;
 	find . -name "*.d" -exec rm -f {} \;
 	rm -f *~ \#*
