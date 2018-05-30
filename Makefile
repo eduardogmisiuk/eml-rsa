@@ -21,7 +21,7 @@
 
 OBJECTS = obj/main.o obj/eml-rsa.o
 
-BIN = bin/main
+BIN = main
 
 # Maintainer flags
 
@@ -37,7 +37,7 @@ all: $(BIN)
 # Binary
 
 $(BIN) : $(OBJECTS)
-	$(CC) $(LD_FLAGS) $(LDFLAGS) $^ -o $@
+	$(CC) $^ $(LD_FLAGS) $(LDFLAGS) -o $@
 
 # Pattern rule for object-source dependences
 
@@ -59,6 +59,6 @@ obj/%.d : src/%.cpp
 
 clean:
 	find . -name "*.o" -exec rm -f {} \;
-	rm -f bin/main
+	find . -name "eml-rsa-main" -exec rm -f {} \;
 	find . -name "*.d" -exec rm -f {} \;
 	rm -f *~ \#*
