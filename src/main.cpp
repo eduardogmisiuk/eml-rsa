@@ -61,6 +61,10 @@ int main (int argc, char *argv[]) {
 
 			generate_keys(seed);
 			break;
+
+		default:
+			std::cout << "Error: bad argument." << std::endl;
+			return EXIT_FAILURE;
 	}
 
 	return EXIT_SUCCESS;
