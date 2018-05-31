@@ -1,6 +1,6 @@
 # Makefile 06 - User flags 
 
-# Copyright (c) 2015, Monaco F. J. <moanco@icmc.usp.br>
+# Copyright (c) 2015, Monaco F. J. <monaco@icmc.usp.br>
 #
 # This file is part of POSIXeg.
 #
