@@ -41,6 +41,10 @@ void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
  */
 void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypted_message_fn);
 
-void generate_keys (std::string seed);
+/*
+ * Create the public and private keys to be used in the algorithm and saves it
+ * in separate files "key_fn.pub", "key_fn.prv".
+ */
+void generate_keys (unsigned long int seed, std::string &key_fn);
 
 #endif // _EML_RSA_H_
