@@ -29,6 +29,7 @@
 #include <fstream>
 #include <string>
 #include <gmpxx.h>
+#include <random>
 
 #include "eml-rsa.h"
 
@@ -36,7 +37,7 @@ int main (int argc, char *argv[]) {
 	std::string key_fn;
 	std::string message_fn;
 	std::string encrypted_message_fn;
-	std::string seed;
+	unsigned long int seed;
 	char option = argv[1][0];
 
 	key_fn = argv[2];
@@ -57,14 +58,15 @@ int main (int argc, char *argv[]) {
 			break;
 
 		case 'K':
-			seed = argv[3];
+			// Create a random seed if it is not passed as an argument
+			if(argc != 4){
+				std::random_device rd;
+				seed = (unsigned long int)rd();
+			}
+			else seed = std::stoi(argv[3], NULL, 10);
 
-			generate_keys(seed);
+			generate_keys(seed, key_fn);
 			break;
-
-		default:
-			std::cout << "Error: bad argument." << std::endl;
-			return EXIT_FAILURE;
 	}
 
 	return EXIT_SUCCESS;
