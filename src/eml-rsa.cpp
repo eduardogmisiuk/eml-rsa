@@ -28,6 +28,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <string>
+#include <vector>
 #include <gmpxx.h>
 
 #include "eml-rsa.h"
@@ -39,9 +40,10 @@
 gmp_randclass rnd(gmp_randinit_default);
 
 void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypted_message_fn) {
-	mpz_class n, d, res, character;
+	mpz_class n, d, n1, res, character;
+	std::vector <mpz_class> encrypted_message;
 
-	std::string message = "", encrypted_message = "";
+	std::string message = "";
 
 	// Key and encrypted message files
 	std::ifstream key_f, encrypted_message_f;
@@ -52,17 +54,29 @@ void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	key_f.open(key_fn, std::ios::in);
 	key_f >> n;
 	key_f >> d;
+	key_f >> n1;
 	key_f.close();
 
-	encrypted_message_f.open(encrypted_message_fn, std::ios::in);
+	// Reading the message from message_fn
+	encrypted_message_f.open(encrypted_message_fn, std::ios::in | std::ios::binary);
+	do {
+		encrypted_message_f >> character;
+		encrypted_message.push_back(character);
+	} while (!encrypted_message_f.eof());
+	// The last character at 'message' will be EOF, so we need to get rid of him
+	encrypted_message_f.close();
+
 	// Since our message is separated by spaces, we can get
 	// the characters directly from the file
-	while (!encrypted_message_f.eof()) {
-		encrypted_message_f >> character;
+	for (mpz_class &c : encrypted_message) {
+		// Applying Caesar's Cypher with the second generated key
+		c -= n1;
 
 		// mpz_powm() doesn't prevent timing attacks, but mpz_powm_sec() does
 		// res = character**d mod n
-		mpz_powm_sec(res.get_mpz_t(), character.get_mpz_t(), d.get_mpz_t(), n.get_mpz_t());
+		mpz_powm_sec(res.get_mpz_t(), c.get_mpz_t(), d.get_mpz_t(), n.get_mpz_t());
+
+		c = 0;
 
 		// We can't convert from mpz_t to char directly,
 		// so we convert to signed long int and then to char
@@ -72,7 +86,6 @@ void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 		// character
 		message += (signed char) mpz_get_si(res.get_mpz_t());
 	}
-	encrypted_message_f.close();
 
 	// Writes the message in the message file
 	message_f.open(message_fn, std::ios::out);
@@ -82,11 +95,12 @@ void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	// Removing the values from the memory for security
 	n = 0;
 	d = 0;
+	n1 = 0;
 	res = 0;
 }
 
 void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypted_message_fn) {
-	mpz_class n, e, res, character;
+	mpz_class n, n1, e, res, character;
 
 	std::string message = "";
 	std::string encrypted_message = "";
@@ -100,12 +114,11 @@ void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	key_f.open(key_fn, std::ios::in);
 	key_f >> n;
 	key_f >> e;
+	key_f >> n1;
 	key_f.close();
 
 	// Reading the message from message_fn
 	message_f.open(message_fn, std::ios::in);
-	// 'message_f >> temp' reads until certain symbols, so we need to certify that
-	// it will go until the end
 	do {
 		message += message_f.get();
 	} while (!message_f.eof());
@@ -113,30 +126,34 @@ void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	message.pop_back();
 	message_f.close();
 
-	// Modular exponentiation: character**e mod n
 	for (char &c : message) {
 		// We read the character as a unsigned char because the RSA needs the message to
 		// be within 1 < character < n-1
 		// Treating it as positive, we can encrypt any kind of file, since some
 		// characters can be negative in images, for example
 		character = (unsigned char) c;
-		// mpz_powm() doesn't prevent timing attacks, but mpz_powm_sec() does
-		mpz_powm_sec(res.get_mpz_t(), character.get_mpz_t(), e.get_mpz_t(), n.get_mpz_t());
 		// Replacing the message characters to improve security
 		c = '0';
+		// mpz_powm() doesn't prevent timing attacks, but mpz_powm_sec() does
+		mpz_powm_sec(res.get_mpz_t(), character.get_mpz_t(), e.get_mpz_t(), n.get_mpz_t());
+
+		// Applying Caesar's Cypher with the second generated key
+		res += n1;
+
 		encrypted_message += res.get_str() + " ";
 		character = 0;
 	}
 
 	encrypted_message.pop_back();
 
-	encrypted_message_f.open(encrypted_message_fn, std::ios::out);
+	encrypted_message_f.open(encrypted_message_fn, std::ios::out | std::ios::binary);
 	encrypted_message_f << encrypted_message;
 	encrypted_message_f.close();
 
 	// Removing the values from the memory for security
 	n = 0;
 	e = 0;
+	n1 = 0;
 	res = 0;
 }
 
@@ -230,6 +247,8 @@ void generate_keys(unsigned long int seed, std::string &key_fn){
 	// "p" and "q" are two prime numbers with the size "KEY_LENGTH_BITS"
 	mpz_class p = generate_rand_prime(KEY_LENGTH_BITS, seed);
 	mpz_class q = generate_rand_prime(KEY_LENGTH_BITS, seed);
+	// Generating the second key
+	mpz_class n1 = generate_rand_prime((KEY_LENGTH_BITS/2), seed);
 
 	// "n" saves the value of p*q
 	mpz_class n = p * q;
@@ -256,6 +275,8 @@ void generate_keys(unsigned long int seed, std::string &key_fn){
 	key_pub_f << n;
 	key_pub_f << "\n";
 	key_pub_f << e;
+	key_pub_f << "\n";
+	key_pub_f << n1;
 	key_pub_f.close();
 
 	// Create file with the private key
@@ -267,12 +288,15 @@ void generate_keys(unsigned long int seed, std::string &key_fn){
 	key_prv_f << n;
 	key_prv_f << "\n";
 	key_prv_f << d;
+	key_prv_f << "\n";
+	key_prv_f << n1;
 	key_prv_f.close();
 
 	// Removing the values from the memory for security
 	p = 0;
 	q = 0;
 	n = 0;
+	n1 = 0;
  	tot = 0;
 	e = 0;
 	d = 0;
