@@ -34,7 +34,7 @@
 #include "eml-rsa.h"
 
 #define DELIMITER '|'
-#define CHUNK_SIZE 128
+#define CHUNK_SIZE 64
 #define KEY_LENGTH_BITS 1024
 #define REPEAT_MILLER_RABIN 50
 
@@ -54,22 +54,18 @@ void calculate_s_vector (std::vector<long int> &S, mpz_class subkey, long int me
 		j = mpz_get_ui(temp.get_mpz_t());
 		std::swap(S[i], S[j]);
 	}
-	for (int i = 0; i < message_size; i++) std::cout << S[i] << std::endl;
 }
 
 void permutate_message (std::vector<long int> &S, std::string &message) {
 	for (unsigned long int i = 0; i < message.size(); i++) {
 		std::swap(message[i], message[S[i]]);
 	}
-	std::cout << message << std::endl;
 }
 
 void depermutate_message (std::vector<long int> &S, std::string &message) {
 	for (long int i = message.size()-1; i >= 0; i--) {
-		std::cout << "Index: " << i << std::endl;
 		std::swap(message[i], message[S[i]]);
 	}
-	std::cout << message << std::endl;
 }
 
 void separate_tokens (std::string &message, std::string encrypted_message) {
@@ -113,12 +109,6 @@ void eml_decrypt (std::vector<mpz_class> &encrypted_message, mpz_class &n, mpz_c
 		// res = character**d mod n
 		mpz_powm_sec(res.get_mpz_t(), res.get_mpz_t(), d.get_mpz_t(), n.get_mpz_t());
 
-		// We can't convert from mpz_t to char directly,
-		// so we convert to signed long int and then to char
-		// We can convert to char because now it's an ASCII character
-		// Since we treated the value as unsigned at the encryption,
-		// we need to treat it as a signed char again to recover the original
-		// character
 		separate_tokens(message, res.get_str());
 	}
 
@@ -234,8 +224,6 @@ void eml_encrypt (std::string &message, mpz_class &n, mpz_class &e, mpz_class &n
 	}
 
 	encrypted_message.pop_back();
-
-	std::cout << encrypted_message << std::endl;
 }
 
 void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypted_message_fn) {
