@@ -38,9 +38,14 @@
 #define KEY_LENGTH_BITS 1024
 #define REPEAT_MILLER_RABIN 50
 
-// Function used to generate random numbers
+/*
+ * Generate random numbers.
+ */
 gmp_randclass rnd(gmp_randinit_default);
 
+/*
+ * Calculates the RC4 'S' permutation vector.
+ */
 void calculate_s_vector (std::vector<long int> &S, mpz_class subkey, long int message_size) {
 	long int i, j = 0;
 	mpz_class temp;
@@ -56,18 +61,27 @@ void calculate_s_vector (std::vector<long int> &S, mpz_class subkey, long int me
 	}
 }
 
+/*
+ * RC4 permutation operation.
+ */
 void permutate_message (std::vector<long int> &S, std::string &message) {
 	for (unsigned long int i = 0; i < message.size(); i++) {
 		std::swap(message[i], message[S[i]]);
 	}
 }
 
+/*
+ * Inverse RC4 permutation operation.
+ */
 void depermutate_message (std::vector<long int> &S, std::string &message) {
 	for (long int i = message.size()-1; i >= 0; i--) {
 		std::swap(message[i], message[S[i]]);
 	}
 }
 
+/*
+ * Removes the delimiters to get the original message.
+ */
 void separate_tokens (std::string &message, std::string encrypted_message) {
 	size_t j = 3;
 	char d = DELIMITER;
@@ -89,6 +103,9 @@ void separate_tokens (std::string &message, std::string encrypted_message) {
 	}
 }
 
+/*
+ * EML RSA decryption algorithm.
+ */
 void eml_decrypt (std::vector<mpz_class> &encrypted_message, mpz_class &n, mpz_class &d, mpz_class &n1, std::vector<mpz_class> &subkeys, std::string &message) {
 	mpz_class res;
 	std::vector<long int> S; // S vector from RC4 algorithm
@@ -98,12 +115,14 @@ void eml_decrypt (std::vector<mpz_class> &encrypted_message, mpz_class &n, mpz_c
 	for (mpz_class &c : encrypted_message) {
 		res = c;
 
+		// Executing consecutives XOR operations
 		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[0].get_mpz_t());
 		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[1].get_mpz_t());
-		// Applying Caesar's Cypher with the second generated key
+		// Caesar's Cypher
 		res = res - n1;
-		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[1].get_mpz_t());
+		// Executing consecutives XOR operations
 		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[0].get_mpz_t());
+		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[1].get_mpz_t());
 
 		// mpz_powm() doesn't prevent timing attacks, but mpz_powm_sec() does
 		// res = character**d mod n
@@ -116,6 +135,9 @@ void eml_decrypt (std::vector<mpz_class> &encrypted_message, mpz_class &n, mpz_c
 	depermutate_message (S, message);
 }
 
+/*
+ * Setups the data to call the decryption procedure.
+ */
 void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypted_message_fn) {
 	mpz_class n, d, n1, res, block;
 	std::vector<mpz_class> encrypted_message;
@@ -165,6 +187,9 @@ void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	message_f.close();
 }
 
+/*
+ * Divides a message in blocks to encrypt.
+ */
 void separate_chunks (std::string &message, std::vector<mpz_class> &chunks, int chunk_size) {
 	std::string temp;
 	std::string chunk;
@@ -191,6 +216,9 @@ void separate_chunks (std::string &message, std::vector<mpz_class> &chunks, int 
 	}
 }
 
+/*
+ * EML RSA encryption algorithm.
+ */
 void eml_encrypt (std::string &message, mpz_class &n, mpz_class &e, mpz_class &n1, std::vector<mpz_class> &subkeys, std::string &encrypted_message) {
 	mpz_class res;
 	std::vector<mpz_class> chunks;
@@ -213,19 +241,25 @@ void eml_encrypt (std::string &message, mpz_class &n, mpz_class &e, mpz_class &n
 		// Replacing the message characters to improve security
 		c = 0;
 
-		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[0].get_mpz_t());
+		// Executing consecutives XOR operations
 		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[1].get_mpz_t());
+		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[0].get_mpz_t());
 		// Applying Caesar's Cypher with the second generated key
 		res = res + n1;
+		// Executing consecutives XOR operations
 		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[1].get_mpz_t());
 		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[0].get_mpz_t());
 
 		encrypted_message += res.get_str() + " ";
 	}
 
+	// There is some garbage at the end, so we remove it
 	encrypted_message.pop_back();
 }
 
+/*
+ * Setups the data to call the encryption procedure.
+ */
 void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypted_message_fn) {
 	mpz_class n, n1, e, res, character;
 	std::vector<mpz_class> subkeys;
@@ -245,6 +279,7 @@ void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	key_f >> n1;
 	key_f.close();
 
+	// Generating subkeys using n and n1
 	res = n.get_str().substr(0, 8);
 	subkeys.push_back(res);
 	res = n1.get_str().substr(0, 8);
@@ -273,6 +308,9 @@ void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	encrypted_message_f.close();
 }
 
+/*
+ * Generates a random number with specific_bits_length.
+ */
 mpz_class generate_rand_number(const unsigned int size, bool specific_bits_length){
 	// Inferior limit (bits number)
 	mpz_class min;
@@ -290,6 +328,9 @@ mpz_class generate_rand_number(const unsigned int size, bool specific_bits_lengt
 	return (min+randnumber);
 }
 
+/*
+ * Generates a random number with specific_bits_length, given a seed.
+ */
 mpz_class generate_rand_number(const unsigned int size, unsigned long int seed, bool specific_bits_length){
 	// Inferior limit (bits number)
 	mpz_class min;
@@ -307,6 +348,9 @@ mpz_class generate_rand_number(const unsigned int size, unsigned long int seed, 
 	return (min+randnumber);
 }
 
+/*
+ * Generate a random prime number.
+ */
 mpz_class generate_rand_prime(const unsigned int size, unsigned long int seed){
 	mpz_class candidate;
 	mpz_class nx_prime;
@@ -329,6 +373,9 @@ mpz_class generate_rand_prime(const unsigned int size, unsigned long int seed){
 	return candidate;
 }
 
+/*
+ * Find 'e' given that it is in ]1, totient[.
+ */
 mpz_class select_e(mpz_class tot){
 	mpz_class e;
 	mpz_class coprimes;
@@ -348,6 +395,9 @@ mpz_class select_e(mpz_class tot){
 	return e;
 }
 
+/*
+ * Calculate d*e congruent 1 (mod totient).
+ */
 mpz_class modular_minverse(mpz_class e, mpz_class tot){
 	mpz_class d;
 	
@@ -357,6 +407,9 @@ mpz_class modular_minverse(mpz_class e, mpz_class tot){
 	return d;
 }
 
+/*
+ * Generates EML RSA keys.
+ */
 void generate_keys(unsigned long int seed, std::string &key_fn){
 	rnd.seed(seed);
 
