@@ -41,6 +41,37 @@
 // Function used to generate random numbers
 gmp_randclass rnd(gmp_randinit_default);
 
+void calculate_s_vector (std::vector<long int> &S, mpz_class subkey, long int message_size) {
+	long int i, j = 0;
+	mpz_class temp;
+	for (i = 0; i < message_size; i++) S.push_back(i);
+	for (i = 0; i < message_size; i++) {
+		temp = j + S[i];
+		temp += (long int) subkey.get_str()[i % subkey.get_str().size()];
+		// temp = temp % 256
+		mpz_mod(temp.get_mpz_t(), temp.get_mpz_t(), mpz_class(message_size).get_mpz_t());
+
+		j = mpz_get_ui(temp.get_mpz_t());
+		std::swap(S[i], S[j]);
+	}
+	for (int i = 0; i < message_size; i++) std::cout << S[i] << std::endl;
+}
+
+void permutate_message (std::vector<long int> &S, std::string &message) {
+	for (unsigned long int i = 0; i < message.size(); i++) {
+		std::swap(message[i], message[S[i]]);
+	}
+	std::cout << message << std::endl;
+}
+
+void depermutate_message (std::vector<long int> &S, std::string &message) {
+	for (long int i = message.size()-1; i >= 0; i--) {
+		std::cout << "Index: " << i << std::endl;
+		std::swap(message[i], message[S[i]]);
+	}
+	std::cout << message << std::endl;
+}
+
 void separate_tokens (std::string &message, std::string encrypted_message) {
 	size_t j = 3;
 	char d = DELIMITER;
@@ -48,7 +79,6 @@ void separate_tokens (std::string &message, std::string encrypted_message) {
 	char temp;
 
 	for (size_t i = 3; i < encrypted_message.size(); i++) {
-		//std::cout << encrypted_message.substr(i, delimiter.size()) << std::endl;
 		if (encrypted_message.substr(i, delimiter.size()) == delimiter) {
 			// If this is true, the token is the delimiter, so we need to
 			// go to the real delimiter
@@ -57,27 +87,27 @@ void separate_tokens (std::string &message, std::string encrypted_message) {
 			temp = (char) atoi(encrypted_message.substr(j, i-j).c_str());
 			message += temp;
 
-			//std::cout << "Token: " << temp << std::endl;
-			//std::cout << "i: " << i << ", j: " << j << std::endl;
-
 			i += delimiter.size() - 1;
 			j = i + 1;
 		}
 	}
 }
 
-void eml_decrypt (std::vector<mpz_class> &encrypted_message, mpz_class &n, mpz_class &d, mpz_class &n1, mpz_class &subkey1, mpz_class &subkey2, std::string &message) {
+void eml_decrypt (std::vector<mpz_class> &encrypted_message, mpz_class &n, mpz_class &d, mpz_class &n1, std::vector<mpz_class> &subkeys, std::string &message) {
 	mpz_class res;
+	std::vector<long int> S; // S vector from RC4 algorithm
 
 	// Since our message is separated by spaces, we can get
 	// the characters directly from the file
 	for (mpz_class &c : encrypted_message) {
 		res = c;
 
+		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[0].get_mpz_t());
+		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[1].get_mpz_t());
 		// Applying Caesar's Cypher with the second generated key
 		res = res - n1;
-		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkey2.get_mpz_t());
-		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkey1.get_mpz_t());
+		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[1].get_mpz_t());
+		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[0].get_mpz_t());
 
 		// mpz_powm() doesn't prevent timing attacks, but mpz_powm_sec() does
 		// res = character**d mod n
@@ -91,11 +121,15 @@ void eml_decrypt (std::vector<mpz_class> &encrypted_message, mpz_class &n, mpz_c
 		// character
 		separate_tokens(message, res.get_str());
 	}
+
+	calculate_s_vector (S, subkeys[0], message.size());
+	depermutate_message (S, message);
 }
 
 void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypted_message_fn) {
-	mpz_class n, d, n1, res, block, subkey1, subkey2;
-	std::vector <mpz_class> encrypted_message;
+	mpz_class n, d, n1, res, block;
+	std::vector<mpz_class> encrypted_message;
+	std::vector<mpz_class> subkeys;
 
 	std::string message = "";
 
@@ -111,8 +145,10 @@ void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	key_f >> n1;
 	key_f.close();
 
-	subkey1 = n.get_str().substr(0, 8);
-	subkey2 = n1.get_str().substr(0, 8);
+	res = n.get_str().substr(0, 8);
+	subkeys.push_back(res);
+	res = n1.get_str().substr(0, 8);
+	subkeys.push_back(res);
 
 	// Reading the message from message_fn
 	encrypted_message_f.open(encrypted_message_fn, std::ios::in | std::ios::binary);
@@ -125,7 +161,7 @@ void decrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	block = 0;
 
 	// Decrypting the message with our decryption function
-	eml_decrypt(encrypted_message, n, d, n1, subkey1, subkey2, message);
+	eml_decrypt(encrypted_message, n, d, n1, subkeys, message);
 
 	// Removing the values from the memory for security
 	n = 0;
@@ -154,12 +190,9 @@ void separate_chunks (std::string &message, std::vector<mpz_class> &chunks, int 
 			// be able to convert back to characters,
 			// so we put, after every char, a delimiter.
 			chunk += delimiter + std::to_string((unsigned char) temp[j]);
-			//std::cout << (unsigned int) temp[j] << std::endl;
 		}
 
 		chunk += delimiter;
-
-		//std::cout << chunk << std::endl;
 
 		// Converting to mpz_class
 		c = chunk;
@@ -168,9 +201,13 @@ void separate_chunks (std::string &message, std::vector<mpz_class> &chunks, int 
 	}
 }
 
-void eml_encrypt (std::string &message, mpz_class &n, mpz_class &e, mpz_class &n1, mpz_class &subkey1, mpz_class &subkey2, std::string &encrypted_message) {
+void eml_encrypt (std::string &message, mpz_class &n, mpz_class &e, mpz_class &n1, std::vector<mpz_class> &subkeys, std::string &encrypted_message) {
 	mpz_class res;
 	std::vector<mpz_class> chunks;
+	std::vector<long int> S; // S vector from RC4 algorithm
+
+	calculate_s_vector (S, subkeys[0], message.size());
+	permutate_message (S, message);
 
 	separate_chunks (message, chunks, CHUNK_SIZE);
 
@@ -180,28 +217,30 @@ void eml_encrypt (std::string &message, mpz_class &n, mpz_class &e, mpz_class &n
 		// Treating it as positive, we can encrypt any kind of file, since some
 		// characters can be negative in images, for example
 		res = c;
-		// Replacing the message characters to improve security
-		c = 0;
 		// mpz_powm() doesn't prevent timing attacks, but mpz_powm_sec() does
 		// res = res^e mod n
 		mpz_powm_sec(res.get_mpz_t(), res.get_mpz_t(), e.get_mpz_t(), n.get_mpz_t());
+		// Replacing the message characters to improve security
+		c = 0;
 
-		// res = res xor subkey1
-		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkey1.get_mpz_t());
-		// res = res xor subkey2
-		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkey2.get_mpz_t());
-
+		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[0].get_mpz_t());
+		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[1].get_mpz_t());
 		// Applying Caesar's Cypher with the second generated key
 		res = res + n1;
+		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[1].get_mpz_t());
+		mpz_xor(res.get_mpz_t(), res.get_mpz_t(), subkeys[0].get_mpz_t());
 
 		encrypted_message += res.get_str() + " ";
 	}
 
 	encrypted_message.pop_back();
+
+	std::cout << encrypted_message << std::endl;
 }
 
 void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypted_message_fn) {
-	mpz_class n, n1, e, res, character, subkey1, subkey2;
+	mpz_class n, n1, e, res, character;
+	std::vector<mpz_class> subkeys;
 
 	std::string message = "";
 	std::string encrypted_message = "";
@@ -218,8 +257,10 @@ void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	key_f >> n1;
 	key_f.close();
 
-	subkey1 = n.get_str().substr(0, 8);
-	subkey2 = n1.get_str().substr(0, 8);
+	res = n.get_str().substr(0, 8);
+	subkeys.push_back(res);
+	res = n1.get_str().substr(0, 8);
+	subkeys.push_back(res);
 
 	// Reading the message from message_fn
 	message_f.open(message_fn, std::ios::in);
@@ -231,7 +272,7 @@ void encrypt (std::string &key_fn, std::string &message_fn, std::string &encrypt
 	message_f.close();
 
 	// Encrypting the message with our encryption function
-	eml_encrypt(message, n, e, n1, subkey1, subkey2, encrypted_message);
+	eml_encrypt(message, n, e, n1, subkeys, encrypted_message);
 
 	// Removing the values from the memory for security
 	n = 0;
